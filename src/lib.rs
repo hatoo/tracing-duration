@@ -25,6 +25,8 @@ pub struct DurationData {
 }
 
 impl DurationData {
+    // I don't want to impl `Default` because I feel calling Instant::now() in a default() is not good.
+    #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         Self {
             start: Instant::now(),
@@ -46,6 +48,7 @@ impl DurationLayerContoller {
 }
 
 impl DurationLayer {
+    #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         Self {
             inner: Arc::new(Mutex::new(DurationData::new())),
