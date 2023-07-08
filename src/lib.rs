@@ -12,6 +12,7 @@ pub struct DurationLayer {
     inner: Arc<Mutex<DurationData>>,
 }
 
+#[derive(Clone)]
 pub struct DurationLayerContoller {
     inner: Arc<Mutex<DurationData>>,
 }
