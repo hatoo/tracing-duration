@@ -9,13 +9,54 @@ use tracing::{span, Subscriber};
 use tracing_subscriber::{registry::LookupSpan, Layer};
 
 pub struct DurationLayer {
-    inner: Arc<Mutex<Inner>>,
+    inner: Arc<Mutex<DurationData>>,
+}
+
+pub struct DurationLayerContoller {
+    inner: Arc<Mutex<DurationData>>,
 }
 
 struct StartedAt(Instant);
 
-struct Inner {
-    duration: HashMap<&'static str, Duration>,
+#[derive(Debug, Clone)]
+pub struct DurationData {
+    pub start: Instant,
+    pub duration: HashMap<&'static str, Duration>,
+}
+
+impl DurationData {
+    pub fn new() -> Self {
+        Self {
+            start: Instant::now(),
+            duration: HashMap::new(),
+        }
+    }
+}
+
+impl DurationLayerContoller {
+    pub fn current(&self) -> DurationData {
+        self.inner.lock().unwrap().clone()
+    }
+
+    pub fn reset(&self) -> DurationData {
+        let mut res = DurationData::new();
+        std::mem::swap(&mut res, &mut self.inner.lock().unwrap());
+        res
+    }
+}
+
+impl DurationLayer {
+    pub fn new() -> Self {
+        Self {
+            inner: Arc::new(Mutex::new(DurationData::new())),
+        }
+    }
+
+    pub fn controller(&self) -> DurationLayerContoller {
+        DurationLayerContoller {
+            inner: self.inner.clone(),
+        }
+    }
 }
 
 impl<S> Layer<S> for DurationLayer
@@ -54,8 +95,29 @@ where
 
 #[cfg(test)]
 mod tests {
+    use tracing::info_span;
+    use tracing_subscriber::prelude::*;
+
     use super::*;
 
     #[test]
-    fn it_works() {}
+    fn it_works() {
+        let layer = DurationLayer::new();
+        let controller = layer.controller();
+
+        tracing_subscriber::registry::Registry::default()
+            .with(layer)
+            .init();
+
+        info_span!("test").in_scope(|| {
+            std::thread::sleep(Duration::from_millis(100));
+        });
+
+        let data = controller.current();
+
+        assert_eq!(
+            &["test"],
+            data.duration.into_keys().collect::<Vec<_>>().as_slice()
+        );
+    }
 }
