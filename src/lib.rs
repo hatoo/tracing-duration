@@ -19,10 +19,16 @@ pub struct DurationLayerContoller {
 
 struct StartedAt(Instant);
 
+#[derive(Debug, Clone, Default)]
+pub struct DurationRecord {
+    pub duration: Duration,
+    pub count: usize,
+}
+
 #[derive(Debug, Clone)]
 pub struct DurationData {
     pub start: Instant,
-    pub duration: HashMap<&'static str, Duration>,
+    pub duration: HashMap<&'static str, DurationRecord>,
 }
 
 impl DurationData {
@@ -87,13 +93,10 @@ where
 
         span.extensions_mut().remove::<StartedAt>();
 
-        self.inner
-            .lock()
-            .unwrap()
-            .duration
-            .entry(name)
-            .or_default()
-            .add_assign(started_at.elapsed());
+        let mut lock = self.inner.lock().unwrap();
+        let record = lock.duration.entry(name).or_default();
+        record.duration.add_assign(started_at.elapsed());
+        record.count += 1;
     }
 }
 
